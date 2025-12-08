@@ -4,11 +4,12 @@ import os
 import shutil
 import time
 import warnings
+import uuid
 
-# FIX 1: Disable ChromaDB Telemetry (Stops the "capture()" errors)
+# CRITICAL FIX: Disable ChromaDB Telemetry
 os.environ["ANONYMIZED_TELEMETRY"] = "False"
 
-# FIX 2: Swap SQLite for Streamlit Cloud Compatibility
+# CRITICAL FIX: Swap SQLite for Streamlit Cloud Compatibility
 try:
     __import__('pysqlite3')
     import sys
@@ -16,7 +17,7 @@ try:
 except ImportError:
     pass
 
-# FIX 3: Silence Deprecation Warnings
+# Silence Warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 from langchain_community.document_loaders import PyPDFLoader
@@ -29,16 +30,14 @@ from langchain_core.output_parsers import StrOutputParser
 
 # CONFIG
 st.set_page_config(page_title="Eldridge CLO Stip Analyzer", layout="wide", page_icon="🛡️")
-PERSIST_DIRECTORY = "./db_storage_streamlit_v2" # Changed path to avoid old lock conflicts
 
-# --- HELPER: GET API KEY (Local + Cloud Support) ---
+# --- HELPER: GET API KEY ---
 def get_api_key():
     if "OPENAI_API_KEY" in st.secrets:
         return st.secrets["OPENAI_API_KEY"]
     elif os.getenv("OPENAI_API_KEY"):
         return os.getenv("OPENAI_API_KEY")
-    else:
-        return None
+    return None
 
 # --- 2. CSS STYLING ---
 st.markdown("""
@@ -53,17 +52,24 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. BACKEND LOGIC (The "Brain") ---
+# --- 3. BACKEND LOGIC ---
+def get_session_db_path():
+    """
+    Generates or retrieves a unique DB path for this specific session.
+    This prevents 'Tenant' errors by ensuring every upload gets a fresh folder.
+    """
+    if 'db_path' not in st.session_state:
+        # Create a unique folder name
+        st.session_state['db_path'] = f"./chroma_db_{uuid.uuid4().hex}"
+    return st.session_state['db_path']
+
 def process_document(uploaded_file):
-    """
-    Ingest the document directly within the Streamlit session.
-    """
     api_key = get_api_key()
     if not api_key:
-        st.error("❌ API Key missing. Please set OPENAI_API_KEY in secrets or environment.")
+        st.error("❌ API Key missing.")
         return False
 
-    # Save temp file
+    # 1. Save temp PDF
     temp_path = f"temp_{uploaded_file.name}"
     with open(temp_path, "wb") as f:
         f.write(uploaded_file.getbuffer())
@@ -74,62 +80,70 @@ def process_document(uploaded_file):
         loader = PyPDFLoader(temp_path)
         docs = loader.load()
         
-        # Split
+        # 2. Split
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
         splits = text_splitter.split_documents(docs)
         
-        # Embed (Batched for safety)
+        # 3. Clean up OLD DB if it exists (To save space)
+        # We perform a "Soft Reset" by generating a BRAND NEW path
+        if 'db_path' in st.session_state:
+            old_path = st.session_state['db_path']
+            if os.path.exists(old_path):
+                try:
+                    shutil.rmtree(old_path)
+                except:
+                    pass # If locked, we just ignore it and move to a new folder
+        
+        # Generate FRESH path for this new document
+        current_db_path = f"./chroma_db_{uuid.uuid4().hex}"
+        st.session_state['db_path'] = current_db_path
+        
+        # 4. Embed (Batched)
         batch_size = 50
         progress_bar = st.progress(0)
         
-        # CRITICAL FIX: Force clean slate to avoid "Instance Exists" errors
-        if os.path.exists(PERSIST_DIRECTORY):
-            try:
-                shutil.rmtree(PERSIST_DIRECTORY)
-                time.sleep(0.5) # Wait for filesystem to release lock
-            except Exception as e:
-                st.warning(f"Could not clear old database: {e}. Trying to overwrite...")
-        
+        # Init DB
         vectorstore = Chroma.from_documents(
             documents=splits[:batch_size], 
             embedding=OpenAIEmbeddings(api_key=api_key), 
-            persist_directory=PERSIST_DIRECTORY
+            persist_directory=current_db_path
         )
         
-        # Add rest
         total_batches = (len(splits) // batch_size) + 1
         for i in range(batch_size, len(splits), batch_size):
             batch = splits[i:i + batch_size]
             vectorstore.add_documents(batch)
             progress = min((i / len(splits)), 1.0)
             progress_bar.progress(progress, text=f"Embedding batch {i // batch_size}/{total_batches}")
-            time.sleep(0.5) # Safety pause
+            time.sleep(0.1)
             
         progress_bar.empty()
         os.remove(temp_path)
         return True
         
     except Exception as e:
-        st.error(f"Error: {e}")
+        st.error(f"Error during ingestion: {e}")
         if os.path.exists(temp_path):
             os.remove(temp_path)
         return False
 
 def run_query(question):
-    """
-    Run the RAG chain against the local vector store
-    """
     api_key = get_api_key()
     if not api_key:
         return "Error: API Key missing."
+    
+    # Check if we have a DB path
+    if 'db_path' not in st.session_state:
+        return "⚠️ No document loaded. Please upload one first."
+    
+    current_db_path = st.session_state['db_path']
 
     try:
-        # Re-initialize the vector store for querying
-        vectorstore = Chroma(persist_directory=PERSIST_DIRECTORY, embedding_function=OpenAIEmbeddings(api_key=api_key))
+        # Re-initialize vector store pointing to the SESSION SPECIFIC path
+        vectorstore = Chroma(persist_directory=current_db_path, embedding_function=OpenAIEmbeddings(api_key=api_key))
         
-        # Check if DB is empty
         if vectorstore._collection.count() == 0:
-            return "⚠️ Database is empty. Please upload a document first."
+            return "⚠️ Database is empty."
 
         retriever = vectorstore.as_retriever()
         
@@ -155,18 +169,17 @@ def run_query(question):
         
         return rag_chain.invoke(question)
     except Exception as e:
-        return f"Error: {e}"
+        return f"Error processing query: {e}"
 
-# --- 4. FRONTEND UI (The "Face") ---
+# --- 4. FRONTEND UI ---
 with st.sidebar:
     st.image("https://cdn-icons-png.flaticon.com/512/2704/2704022.png", width=50)
     st.title("Deal Room")
     
-    # API Key Status
     if get_api_key():
         st.caption("✅ API Key Active")
     else:
-        st.caption("❌ API Key Missing")
+        st.error("❌ API Key Missing")
 
     uploaded_file = st.file_uploader("Upload Indenture (PDF)", type=['pdf'])
     
@@ -177,14 +190,14 @@ with st.sidebar:
                 st.success("Ingestion Complete!")
                 st.session_state['doc_ready'] = True
     
-    # Reset Button for locked DBs
-    if st.button("⚠️ Reset Database"):
-        if os.path.exists(PERSIST_DIRECTORY):
-            shutil.rmtree(PERSIST_DIRECTORY)
-            st.warning("Database cleared. Please re-upload.")
-            st.session_state['doc_ready'] = False
+    # Simple Reset
+    if st.button("⚠️ Clear Memory"):
+        st.session_state['doc_ready'] = False
+        if 'db_path' in st.session_state:
+            del st.session_state['db_path']
+        st.warning("Memory Cleared.")
 
-    # Eldridge Stips Cheat Sheet (FULL LIST)
+    # Eldridge Stips Cheat Sheet
     with st.expander("📋 Eldridge Stips Checklist", expanded=True):
         st.markdown("""
         **1. Concentration Limits**
