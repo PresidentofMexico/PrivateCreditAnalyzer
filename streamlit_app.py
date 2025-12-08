@@ -3,15 +3,21 @@ import streamlit as st
 import os
 import shutil
 import time
+import warnings
 
-# FIX: ChromaDB requires new SQLite, which Streamlit Cloud doesn't have by default.
-# We swap it for a binary version here.
+# FIX 1: Disable ChromaDB Telemetry (Stops the "capture()" errors)
+os.environ["ANONYMIZED_TELEMETRY"] = "False"
+
+# FIX 2: Swap SQLite for Streamlit Cloud Compatibility
 try:
     __import__('pysqlite3')
     import sys
     sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 except ImportError:
     pass
+
+# FIX 3: Silence Deprecation Warnings for cleaner logs
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -65,10 +71,13 @@ def process_document(uploaded_file):
         # Initialize DB with first batch
         if os.path.exists(PERSIST_DIRECTORY):
             shutil.rmtree(PERSIST_DIRECTORY)
-            
+        
+        # Use st.secrets for API key
+        api_key = st.secrets["OPENAI_API_KEY"]
+        
         vectorstore = Chroma.from_documents(
             documents=splits[:batch_size], 
-            embedding=OpenAIEmbeddings(api_key=st.secrets["OPENAI_API_KEY"]), 
+            embedding=OpenAIEmbeddings(api_key=api_key), 
             persist_directory=PERSIST_DIRECTORY
         )
         
@@ -87,6 +96,8 @@ def process_document(uploaded_file):
         
     except Exception as e:
         st.error(f"Error: {e}")
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
         return False
 
 def run_query(question):
@@ -94,7 +105,9 @@ def run_query(question):
     Run the RAG chain against the local vector store
     """
     try:
-        vectorstore = Chroma(persist_directory=PERSIST_DIRECTORY, embedding_function=OpenAIEmbeddings(api_key=st.secrets["OPENAI_API_KEY"]))
+        # Re-initialize the vector store for querying
+        api_key = st.secrets["OPENAI_API_KEY"]
+        vectorstore = Chroma(persist_directory=PERSIST_DIRECTORY, embedding_function=OpenAIEmbeddings(api_key=api_key))
         retriever = vectorstore.as_retriever()
         
         template = """You are a senior private credit analyst. 
@@ -108,7 +121,7 @@ def run_query(question):
         Answer:"""
         
         prompt = ChatPromptTemplate.from_template(template)
-        llm = ChatOpenAI(model_name="gpt-4o", temperature=0, api_key=st.secrets["OPENAI_API_KEY"])
+        llm = ChatOpenAI(model_name="gpt-4o", temperature=0, api_key=api_key)
         
         rag_chain = (
             {"context": retriever, "question": RunnablePassthrough()}
@@ -134,7 +147,7 @@ with st.sidebar:
                 st.success("Ingestion Complete!")
                 st.session_state['doc_ready'] = True
 
-    # Eldridge Stips Cheat Sheet
+    # Eldridge Stips Cheat Sheet (FULL LIST)
     with st.expander("📋 Eldridge Stips Checklist", expanded=True):
         st.markdown("""
         **1. Concentration Limits**
@@ -159,8 +172,8 @@ with st.sidebar:
         - **Discount Obligation:** NO carveouts
         - **Small Obligor:** Min $150M Indebtedness
         
-        **4. Other Req.**
-        - Distressed Exchange: **5% (20% cum)**
+        **4. Other Requirements**
+        - Distressed Exchange: **5% (20% cumulutive)**
         - FLLO = **Second Lien**
         - Min Price: **50%** (5% allow for 50-60%)
         - Trading Plan: **5%** (No Credit Risk carveout)
@@ -181,7 +194,7 @@ else:
     with c1:
         if st.button("Check Caa/CCC & Top 5"):
             with st.spinner("Checking Caa/CCC and Top 5 limits..."):
-                st.success(run_query("Does the indenture limit Moody’s Caa/S&P CCC to 7.5%? Does it limit Top 5 Obligors to 2.5%?"))
+                st.success(run_query("Does the indenture limit Moody’s Caa and S&P CCC obligations to 7.5%? Does it limit Top 5 Obligors to 2.5%?"))
     with c2:
         if st.button("Check Cov-Lite & Long Dated"):
             with st.spinner("Checking Cov-Lite and Long Dated..."):
