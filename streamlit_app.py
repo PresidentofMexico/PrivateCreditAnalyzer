@@ -135,14 +135,39 @@ with st.sidebar:
                 st.session_state['doc_ready'] = True
 
     # Eldridge Stips Cheat Sheet
-    with st.expander("📋 Eldridge Stips", expanded=True):
+    with st.expander("📋 Eldridge Stips Checklist", expanded=True):
         st.markdown("""
-        **Concentration Limits**
+        **1. Concentration Limits**
         - Caa/CCC Limit: **7.5%**
+        - Top 5 Obligors: **2.5%** (1.5% non-senior)
         - Cov-lite: **60%**
-        - Industry Cap: **10%**
-        **Reinvestment**
+        - Small Obligors ($150-250M): **5%**
+        - Long Dated: **0%**
+        - Bridge Loans: **2.5%**
+        - Fixed Rate: **5%**
+        - Senior Secured: **>90%**
+        - DIP: **7.5%**
+        - Industry Cap: **10%** (Exceptions: 2x12%, 1x15%)
+        
+        **2. Reinvestment**
         - Post-Reinv Maturity: **<= Sold Asset**
+        - O/C Test: **Must Satisfy**
+        - Proceeds: Reinvest w/in 45 days or 2nd determination date
+        
+        **3. Definitions**
+        - **CCC Excess:** NO carveouts
+        - **Discount Obligation:** NO carveouts
+        - **Small Obligor:** Min $150M Indebtedness
+        
+        **4. Other Req.**
+        - Distressed Exchange: **5% (20% cum)**
+        - FLLO = **Second Lien**
+        - Min Price: **50%** (5% allow for 50-60%)
+        - Trading Plan: **5%** (No Credit Risk carveout)
+        
+        **5. Workouts**
+        - Sale Proceeds -> Principal (Cap at default bal)
+        - Interest use strictly limited
         """)
 
 st.title("🛡️ CLO Indenture vs. Stip Analyzer")
@@ -150,23 +175,53 @@ st.title("🛡️ CLO Indenture vs. Stip Analyzer")
 if 'doc_ready' not in st.session_state:
     st.info("👈 Please upload a document to begin.")
 else:
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("### 📊 Concentration Tests")
-        if st.button("Check Caa/CCC Limits"):
-            with st.spinner("Analyzing..."):
-                st.success(run_query("Does the indenture limit Moody’s Caa and S&P CCC obligations to 7.5%? Are there carveouts?"))
-        
+    # Row 1: Concentration
+    st.subheader("📊 1. Concentration Checks")
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        if st.button("Check Caa/CCC & Top 5"):
+            with st.spinner("Checking Caa/CCC and Top 5 limits..."):
+                st.success(run_query("Does the indenture limit Moody’s Caa/S&P CCC to 7.5%? Does it limit Top 5 Obligors to 2.5%?"))
+    with c2:
         if st.button("Check Cov-Lite & Long Dated"):
-            with st.spinner("Analyzing..."):
-                st.success(run_query("Is there a 60% concentration limit for Cov-lite loans? Is there a 0% limit for Long Dated Obligations?"))
+            with st.spinner("Checking Cov-Lite and Long Dated..."):
+                st.success(run_query("Is there a 60% limit for Cov-lite loans? Is there a 0% limit for Long Dated Obligations?"))
+    with c3:
+        if st.button("Check Industry Caps"):
+            with st.spinner("Checking Industry Caps..."):
+                st.success(run_query("Verify Industry Concentration limits. Is it 10% standard? Are exceptions 12% (up to 2) and 15% (up to 1)?"))
 
-    with col2:
-        st.markdown("### ⚖️ Reinvestment & Workouts")
-        if st.button("Check Post-Reinvestment Maturity"):
-            with st.spinner("Analyzing..."):
+    # Row 2: Definitions & Reinvestment
+    st.subheader("⚖️ 2. Definitions & Reinvestment")
+    d1, d2, d3 = st.columns(3)
+    with d1:
+        if st.button("Check CCC/Discount Defs"):
+            with st.spinner("Checking Definitions..."):
+                st.success(run_query("Are there any carveouts within the definition of CCC Excess or Discount Obligations? (Stip requires NO carveouts)."))
+    with d2:
+        if st.button("Check Post-Reinv Maturity"):
+            with st.spinner("Checking Maturity Rules..."):
                 st.success(run_query("Does the indenture require post-reinvestment purchases to have a maturity equal to or shorter than the prepaid/sold obligation?"))
+    with d3:
+        if st.button("Check Small Obligors"):
+             with st.spinner("Checking Small Obligor limits..."):
+                st.success(run_query("What is the minimum total indebtedness for Small Obligors? (Expect $150M). Is there a 5% concentration limit for them?"))
+
+    # Row 3: Other Requirements
+    st.subheader("🚨 3. Other Requirements")
+    o1, o2, o3 = st.columns(3)
+    with o1:
+        if st.button("Check Distressed Exchange"):
+            with st.spinner("Checking Distressed Exchange..."):
+                st.success(run_query("What are the limits for Distressed Exchanges? (Expect 5% point-in-time, 20% cumulative)."))
+    with o2:
+        if st.button("Check Trading Plan"):
+            with st.spinner("Checking Trading Plan..."):
+                st.success(run_query("What is the Trading Plan allowance? (Expect 5%). Does it have a carveout for Credit Risk sales? (Expect NO)."))
+    with o3:
+        if st.button("Check Workouts"):
+            with st.spinner("Checking Workout treatment..."):
+                st.success(run_query("How are sale proceeds from Workout Assets treated? Must they be counted as principal up to the defaulted balance?"))
 
     st.divider()
     user_input = st.chat_input("Ask a custom question about the indenture...")
