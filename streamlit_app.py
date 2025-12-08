@@ -16,7 +16,7 @@ try:
 except ImportError:
     pass
 
-# FIX 3: Silence Deprecation Warnings for cleaner logs
+# FIX 3: Silence Deprecation Warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 from langchain_community.document_loaders import PyPDFLoader
@@ -29,7 +29,16 @@ from langchain_core.output_parsers import StrOutputParser
 
 # CONFIG
 st.set_page_config(page_title="Eldridge CLO Stip Analyzer", layout="wide", page_icon="🛡️")
-PERSIST_DIRECTORY = "./db_storage_streamlit"
+PERSIST_DIRECTORY = "./db_storage_streamlit_v2" # Changed path to avoid old lock conflicts
+
+# --- HELPER: GET API KEY (Local + Cloud Support) ---
+def get_api_key():
+    if "OPENAI_API_KEY" in st.secrets:
+        return st.secrets["OPENAI_API_KEY"]
+    elif os.getenv("OPENAI_API_KEY"):
+        return os.getenv("OPENAI_API_KEY")
+    else:
+        return None
 
 # --- 2. CSS STYLING ---
 st.markdown("""
@@ -49,6 +58,11 @@ def process_document(uploaded_file):
     """
     Ingest the document directly within the Streamlit session.
     """
+    api_key = get_api_key()
+    if not api_key:
+        st.error("❌ API Key missing. Please set OPENAI_API_KEY in secrets or environment.")
+        return False
+
     # Save temp file
     temp_path = f"temp_{uploaded_file.name}"
     with open(temp_path, "wb") as f:
@@ -68,12 +82,13 @@ def process_document(uploaded_file):
         batch_size = 50
         progress_bar = st.progress(0)
         
-        # Initialize DB with first batch
+        # CRITICAL FIX: Force clean slate to avoid "Instance Exists" errors
         if os.path.exists(PERSIST_DIRECTORY):
-            shutil.rmtree(PERSIST_DIRECTORY)
-        
-        # Use st.secrets for API key
-        api_key = st.secrets["OPENAI_API_KEY"]
+            try:
+                shutil.rmtree(PERSIST_DIRECTORY)
+                time.sleep(0.5) # Wait for filesystem to release lock
+            except Exception as e:
+                st.warning(f"Could not clear old database: {e}. Trying to overwrite...")
         
         vectorstore = Chroma.from_documents(
             documents=splits[:batch_size], 
@@ -104,10 +119,18 @@ def run_query(question):
     """
     Run the RAG chain against the local vector store
     """
+    api_key = get_api_key()
+    if not api_key:
+        return "Error: API Key missing."
+
     try:
         # Re-initialize the vector store for querying
-        api_key = st.secrets["OPENAI_API_KEY"]
         vectorstore = Chroma(persist_directory=PERSIST_DIRECTORY, embedding_function=OpenAIEmbeddings(api_key=api_key))
+        
+        # Check if DB is empty
+        if vectorstore._collection.count() == 0:
+            return "⚠️ Database is empty. Please upload a document first."
+
         retriever = vectorstore.as_retriever()
         
         template = """You are a senior private credit analyst. 
@@ -138,6 +161,13 @@ def run_query(question):
 with st.sidebar:
     st.image("https://cdn-icons-png.flaticon.com/512/2704/2704022.png", width=50)
     st.title("Deal Room")
+    
+    # API Key Status
+    if get_api_key():
+        st.caption("✅ API Key Active")
+    else:
+        st.caption("❌ API Key Missing")
+
     uploaded_file = st.file_uploader("Upload Indenture (PDF)", type=['pdf'])
     
     if uploaded_file and st.button("🚀 Ingest Document"):
@@ -146,6 +176,13 @@ with st.sidebar:
             if success:
                 st.success("Ingestion Complete!")
                 st.session_state['doc_ready'] = True
+    
+    # Reset Button for locked DBs
+    if st.button("⚠️ Reset Database"):
+        if os.path.exists(PERSIST_DIRECTORY):
+            shutil.rmtree(PERSIST_DIRECTORY)
+            st.warning("Database cleared. Please re-upload.")
+            st.session_state['doc_ready'] = False
 
     # Eldridge Stips Cheat Sheet (FULL LIST)
     with st.expander("📋 Eldridge Stips Checklist", expanded=True):
@@ -172,8 +209,8 @@ with st.sidebar:
         - **Discount Obligation:** NO carveouts
         - **Small Obligor:** Min $150M Indebtedness
         
-        **4. Other Requirements**
-        - Distressed Exchange: **5% (20% cumulutive)**
+        **4. Other Req.**
+        - Distressed Exchange: **5% (20% cum)**
         - FLLO = **Second Lien**
         - Min Price: **50%** (5% allow for 50-60%)
         - Trading Plan: **5%** (No Credit Risk carveout)
