@@ -41,49 +41,200 @@ def get_api_key():
     return None
 
 # --- STATE MANAGEMENT (FULL 30 ELDRIDGE STIPS) ---
+# UPDATED: Added 'SearchQuery' to map "Sales Term" -> "Legal Term"
 if 'stips' not in st.session_state:
     st.session_state['stips'] = [
         # A. Concentration Limitations (1-16)
-        {"Category": "Concentration", "Rule": "Moody’s Caa / S&P CCC Limit", "Threshold": "Max 7.5% (Check Excess Caa/CCC)"},
-        {"Category": "Concentration", "Rule": "Top 5 Obligors", "Threshold": "Max 2.5% each (1.5% if non-senior secured)"},
-        {"Category": "Concentration", "Rule": "Cov-Lite Loans", "Threshold": "Max 60%"},
-        {"Category": "Concentration", "Rule": "Small Obligors ($150M-$250M)", "Threshold": "Max 5% for obligors with debt $150M-$250M"},
-        {"Category": "Concentration", "Rule": "Long Dated Obligations", "Threshold": "0% allowed (Strict prohibition)"},
-        {"Category": "Concentration", "Rule": "Bridge Loans", "Threshold": "Max 2.5%"},
-        {"Category": "Concentration", "Rule": "Fixed Rate / Non-Loan Assets", "Threshold": "Max 5%"},
-        {"Category": "Concentration", "Rule": "Delayed Drawdown / Revolving", "Threshold": "Max 10%"},
-        {"Category": "Concentration", "Rule": "Senior Secured Loans", "Threshold": "Min 90% of Collateral Principal Amount"},
-        {"Category": "Concentration", "Rule": "Participation Interests", "Threshold": "Max 10%"},
-        {"Category": "Concentration", "Rule": "Deferrable Obligations", "Threshold": "Max 5%"},
-        {"Category": "Concentration", "Rule": "DIP Obligations", "Threshold": "Max 7.5%"},
-        {"Category": "Concentration", "Rule": "Industry Concentration", "Threshold": "Max 10% (Exceptions: 2 at 12%, 1 at 15%)"},
-        {"Category": "Concentration", "Rule": "Current Pay Obligations", "Threshold": "Max 5%"},
-        {"Category": "Concentration", "Rule": "Payment Frequency < Quarterly", "Threshold": "Max 5%"},
-        {"Category": "Concentration", "Rule": "Discount Obligations", "Threshold": "Max 20%"},
+        {
+            "Category": "Concentration", 
+            "Rule": "Moody’s Caa / S&P CCC Limit", 
+            "Threshold": "Max 7.5% (Check Excess Caa/CCC)",
+            "SearchQuery": "Concentration Limitations CCC Collateral Obligations Caa Collateral Obligations"
+        },
+        {
+            "Category": "Concentration", 
+            "Rule": "Top 5 Obligors", 
+            "Threshold": "Max 2.5% each (1.5% if non-senior secured)",
+            "SearchQuery": "Concentration Limitations single Obligor issued by up to five such Obligors" # TARGETED FIX
+        },
+        {
+            "Category": "Concentration", 
+            "Rule": "Cov-Lite Loans", 
+            "Threshold": "Max 60%",
+            "SearchQuery": "Concentration Limitations Cov-Lite Loans Covenant Lite Loans"
+        },
+        {
+            "Category": "Concentration", 
+            "Rule": "Small Obligors ($150M-$250M)", 
+            "Threshold": "Max 5% for obligors with debt $150M-$250M",
+            "SearchQuery": "Concentration Limitations Small Obligor Domiciled Indebtedness"
+        },
+        {
+            "Category": "Concentration", 
+            "Rule": "Long Dated Obligations", 
+            "Threshold": "0% allowed (Strict prohibition)",
+            "SearchQuery": "Concentration Limitations Long Dated Obligations maturity"
+        },
+        {
+            "Category": "Concentration", 
+            "Rule": "Bridge Loans", 
+            "Threshold": "Max 2.5%",
+            "SearchQuery": "Concentration Limitations Bridge Loans"
+        },
+        {
+            "Category": "Concentration", 
+            "Rule": "Fixed Rate / Non-Loan Assets", 
+            "Threshold": "Max 5%",
+            "SearchQuery": "Concentration Limitations Fixed Rate Obligations"
+        },
+        {
+            "Category": "Concentration", 
+            "Rule": "Delayed Drawdown / Revolving", 
+            "Threshold": "Max 10%",
+            "SearchQuery": "Concentration Limitations Revolving Collateral Obligations Delayed Drawdown"
+        },
+        {
+            "Category": "Concentration", 
+            "Rule": "Senior Secured Loans", 
+            "Threshold": "Min 90% of Collateral Principal Amount",
+            "SearchQuery": "Concentration Limitations Senior Secured Loans"
+        },
+        {
+            "Category": "Concentration", 
+            "Rule": "Participation Interests", 
+            "Threshold": "Max 10%",
+            "SearchQuery": "Concentration Limitations Participation Interests"
+        },
+        {
+            "Category": "Concentration", 
+            "Rule": "Deferrable Obligations", 
+            "Threshold": "Max 5%",
+            "SearchQuery": "Concentration Limitations Deferrable Obligations"
+        },
+        {
+            "Category": "Concentration", 
+            "Rule": "DIP Obligations", 
+            "Threshold": "Max 7.5%",
+            "SearchQuery": "Concentration Limitations DIP Collateral Obligations"
+        },
+        {
+            "Category": "Concentration", 
+            "Rule": "Industry Concentration", 
+            "Threshold": "Max 10% (Exceptions: 2 at 12%, 1 at 15%)",
+            "SearchQuery": "Concentration Limitations S&P Industry Classification single industry"
+        },
+        {
+            "Category": "Concentration", 
+            "Rule": "Current Pay Obligations", 
+            "Threshold": "Max 5%",
+            "SearchQuery": "Concentration Limitations Current Pay Obligations"
+        },
+        {
+            "Category": "Concentration", 
+            "Rule": "Payment Frequency < Quarterly", 
+            "Threshold": "Max 5%",
+            "SearchQuery": "Concentration Limitations pay interest less frequently than quarterly"
+        },
+        {
+            "Category": "Concentration", 
+            "Rule": "Discount Obligations", 
+            "Threshold": "Max 20%",
+            "SearchQuery": "Concentration Limitations Discount Obligations"
+        },
 
         # B. Reinvestment (17-19)
-        {"Category": "Reinvestment", "Rule": "Post-Reinvestment Maturity", "Threshold": "Maturity must be <= Prepaid/Sold Asset"},
-        {"Category": "Reinvestment", "Rule": "O/C Test Compliance", "Threshold": "Must satisfy O/C test after reinvestment"},
-        {"Category": "Reinvestment", "Rule": "Proceeds Reinvestment Timing", "Threshold": "Later of 45 days or 2nd determination date"},
+        {
+            "Category": "Reinvestment", 
+            "Rule": "Post-Reinvestment Maturity", 
+            "Threshold": "Maturity must be <= Prepaid/Sold Asset",
+            "SearchQuery": "Reinvestment Period maturity date Substitute Obligation"
+        },
+        {
+            "Category": "Reinvestment", 
+            "Rule": "O/C Test Compliance", 
+            "Threshold": "Must satisfy O/C test after reinvestment",
+            "SearchQuery": "Reinvestment Period Overcollateralization Ratio Test"
+        },
+        {
+            "Category": "Reinvestment", 
+            "Rule": "Proceeds Reinvestment Timing", 
+            "Threshold": "Later of 45 days or 2nd determination date",
+            "SearchQuery": "Reinvestment Period Sale Proceeds reinvestment timing"
+        },
 
         # C. Supplemental Indenture (20)
-        {"Category": "Structural", "Rule": "Supplemental Indenture Consent", "Threshold": "Majority of Controlling Class required to change Tests/Limits/Defs"},
+        {
+            "Category": "Structural", 
+            "Rule": "Supplemental Indenture Consent", 
+            "Threshold": "Majority of Controlling Class required to change Tests/Limits/Defs",
+            "SearchQuery": "Supplemental Indenture consent Controlling Class Majority"
+        },
 
         # D. Required Definitions (21-23)
-        {"Category": "Definitions", "Rule": "CCC Excess Definition", "Threshold": "NO carveouts allowed (e.g. excluding CCCs > par)"},
-        {"Category": "Definitions", "Rule": "Discount Obligation Definition", "Threshold": "NO carveouts for CCC Collateral Obligations"},
-        {"Category": "Definitions", "Rule": "Small Obligor Definition", "Threshold": "Min Indebtedness $150M. NO allowance for <$150M."},
+        {
+            "Category": "Definitions", 
+            "Rule": "CCC Excess Definition", 
+            "Threshold": "NO carveouts allowed (e.g. excluding CCCs > par)",
+            "SearchQuery": "definition Excess CCC/Caa Adjustment Amount"
+        },
+        {
+            "Category": "Definitions", 
+            "Rule": "Discount Obligation Definition", 
+            "Threshold": "NO carveouts for CCC Collateral Obligations",
+            "SearchQuery": "definition Discount Obligation"
+        },
+        {
+            "Category": "Definitions", 
+            "Rule": "Small Obligor Definition", 
+            "Threshold": "Min Indebtedness $150M. NO allowance for <$150M.",
+            "SearchQuery": "definition Small Obligor Indebtedness"
+        },
 
         # E. Other Requirements (24-28)
-        {"Category": "Other", "Rule": "Distressed Exchange", "Threshold": "Max 5% point-in-time, 20% cumulative"},
-        {"Category": "Other", "Rule": "FLLO Treatment", "Threshold": "Must be treated as Second Lien Loans"},
-        {"Category": "Other", "Rule": "Minimum Purchase Price", "Threshold": "50% floor (5% allowance for 50-60%)"},
-        {"Category": "Other", "Rule": "Trading Plan Allowance", "Threshold": "Max 5%. NO Credit Risk sales carveout."},
-        {"Category": "Other", "Rule": "Trading Plan Maturity", "Threshold": "Min 6 months. Max 3 years avg life diff."},
+        {
+            "Category": "Other", 
+            "Rule": "Distressed Exchange", 
+            "Threshold": "Max 5% point-in-time, 20% cumulative",
+            "SearchQuery": "Distressed Exchange Offer"
+        },
+        {
+            "Category": "Other", 
+            "Rule": "FLLO Treatment", 
+            "Threshold": "Must be treated as Second Lien Loans",
+            "SearchQuery": "First Lien Last Out Loan Second Lien Loan"
+        },
+        {
+            "Category": "Other", 
+            "Rule": "Minimum Purchase Price", 
+            "Threshold": "50% floor (5% allowance for 50-60%)",
+            "SearchQuery": "Minimum Purchase Price"
+        },
+        {
+            "Category": "Other", 
+            "Rule": "Trading Plan Allowance", 
+            "Threshold": "Max 5%. NO Credit Risk sales carveout.",
+            "SearchQuery": "Trading Plan Investment Criteria"
+        },
+        {
+            "Category": "Other", 
+            "Rule": "Trading Plan Maturity", 
+            "Threshold": "Min 6 months. Max 3 years avg life diff.",
+            "SearchQuery": "Trading Plan Average Life"
+        },
 
         # F. Workouts (29-30)
-        {"Category": "Workouts", "Rule": "Workout Sale Proceeds", "Threshold": "Treat as Principal up to default balance (no distinction)"},
-        {"Category": "Workouts", "Rule": "Workout Purchase w/ Interest", "Threshold": "Only if all notes interest is paid/sufficient"},
+        {
+            "Category": "Workouts", 
+            "Rule": "Workout Sale Proceeds", 
+            "Threshold": "Treat as Principal up to default balance (no distinction)",
+            "SearchQuery": "Workout Loan Sale Proceeds"
+        },
+        {
+            "Category": "Workouts", 
+            "Rule": "Workout Purchase w/ Interest", 
+            "Threshold": "Only if all notes interest is paid/sufficient",
+            "SearchQuery": "Workout Loan interest"
+        },
     ]
 
 # --- 2. CSS STYLING ---
@@ -123,7 +274,8 @@ def process_document(uploaded_file):
         loader = PyPDFLoader(temp_path)
         docs = loader.load()
         
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+        # UPDATED: Increased Chunk Size to 2000 to capture full Context Lists
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=2000, chunk_overlap=400)
         splits = text_splitter.split_documents(docs)
         
         # Soft Reset DB if it exists
@@ -162,7 +314,7 @@ def process_document(uploaded_file):
         if os.path.exists(temp_path): os.remove(temp_path)
         return False
 
-def run_compliance_check(stip_rule, stip_threshold, user_tweaks=""):
+def run_compliance_check(stip_rule, stip_threshold, user_tweaks="", search_override=None):
     """
     Specific Agent logic to compare a Stip against the Doc using Prompt Engineering.
     """
@@ -174,8 +326,9 @@ def run_compliance_check(stip_rule, stip_threshold, user_tweaks=""):
     
     try:
         vectorstore = Chroma(persist_directory=current_db_path, embedding_function=OpenAIEmbeddings(api_key=api_key))
-        # INCREASE K: Retrieve 6 chunks to find scattered details
-        retriever = vectorstore.as_retriever(search_kwargs={"k": 6})
+        
+        # UPDATED: Increased k to 15 to ensure we catch distributed lists
+        retriever = vectorstore.as_retriever(search_kwargs={"k": 15})
         
         template = """You are a strict Private Credit Compliance Officer.
         
@@ -206,9 +359,11 @@ def run_compliance_check(stip_rule, stip_threshold, user_tweaks=""):
             | StrOutputParser()
         )
         
-        # --- FIX: RICH SEARCH QUERY ---
-        # Include keywords like 'limit', 'definition', and the specific number to force better retrieval.
-        search_query = f"Find language regarding {stip_rule} limit of {stip_threshold} definitions concentration limitations"
+        # UPDATED: Use specific Search Terms if available, else fall back to Rich Query
+        if search_override:
+            search_query = search_override
+        else:
+            search_query = f"Find language regarding {stip_rule} limit of {stip_threshold} definitions concentration limitations"
         
         response = rag_chain.invoke(search_query)
         return response
@@ -268,7 +423,9 @@ else:
             for idx, stip in enumerate(stips_list):
                 progress_bar.progress((idx + 1) / len(stips_list), text=f"Checking: {stip['Rule']}...")
                 
-                ai_response = run_compliance_check(stip['Rule'], stip['Threshold'], user_guidance)
+                # UPDATED: Pass SearchQuery if available
+                query_override = stip.get("SearchQuery", None)
+                ai_response = run_compliance_check(stip['Rule'], stip['Threshold'], user_guidance, query_override)
                 
                 status = "❓ Review"
                 clean_response = ai_response
@@ -342,7 +499,13 @@ else:
                     st.text_input(f"Rule", value=stip['Rule'], key=f"rule_name_{i}", disabled=True)
                 with col2:
                     new_thresh = st.text_input(f"Threshold", value=stip['Threshold'], key=f"thresh_{i}")
-                    updated_stips.append({"Rule": stip['Rule'], "Threshold": new_thresh, "Category": stip.get("Category", "General")})
+                    # Preserve Category and SearchQuery
+                    updated_stips.append({
+                        "Rule": stip['Rule'], 
+                        "Threshold": new_thresh, 
+                        "Category": stip.get("Category", "General"),
+                        "SearchQuery": stip.get("SearchQuery", None)
+                    })
             
             if st.form_submit_button("💾 Save Rule Changes"):
                 st.session_state['stips'] = updated_stips
