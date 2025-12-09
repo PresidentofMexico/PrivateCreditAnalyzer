@@ -330,6 +330,7 @@ def run_compliance_check(stip_rule, stip_threshold, user_tweaks="", search_overr
         # UPDATED: Increased k to 15 to ensure we catch distributed lists
         retriever = vectorstore.as_retriever(search_kwargs={"k": 15})
         
+        # UPDATED: Added [STRICTER] tag to the Prompt Template
         template = """You are a strict Private Credit Compliance Officer.
         
         YOUR TASK: Compare the 'Eldridge Requirement' against the 'Document Language'.
@@ -342,8 +343,9 @@ def run_compliance_check(stip_rule, stip_threshold, user_tweaks="", search_overr
         
         OUTPUT FORMAT:
         Provide a concise response starting with one of these tags:
-        [MATCH] - If the document strictly meets or is better than the requirement.
-        [DISCREPANCY] - If the document is looser, missing, or contradicts the requirement.
+        [MATCH] - If the document meets the requirement exactly.
+        [STRICTER] - If the document is MORE conservative/restrictive than the requirement (this is GOOD/ACCEPTABLE).
+        [DISCREPANCY] - If the document is looser, missing, or contradicts the requirement (this is BAD).
         
         After the tag, quote the specific language from the document (with Section # if available) that proves your decision. 
         If there is a discrepancy, explain exactly what the difference is.
@@ -429,9 +431,13 @@ else:
                 
                 status = "❓ Review"
                 clean_response = ai_response
+                # UPDATED: New Status Logic for STRICTER
                 if "[MATCH]" in ai_response:
                     status = "✅ MATCH"
                     clean_response = ai_response.replace("[MATCH]", "").strip()
+                elif "[STRICTER]" in ai_response:
+                    status = "✅ STRICTER"
+                    clean_response = ai_response.replace("[STRICTER]", "").strip()
                 elif "[DISCREPANCY]" in ai_response:
                     status = "❌ DISCREPANCY"
                     clean_response = ai_response.replace("[DISCREPANCY]", "").strip()
@@ -480,7 +486,8 @@ else:
 
             with st.chat_message("assistant"):
                 response = run_compliance_check(user_input, "N/A (Custom Query)", user_guidance)
-                clean_response = response.replace("[MATCH]", "").replace("[DISCREPANCY]", "")
+                # UPDATED: Clean new tag from Chat
+                clean_response = response.replace("[MATCH]", "").replace("[DISCREPANCY]", "").replace("[STRICTER]", "")
                 st.markdown(clean_response)
             st.session_state.messages.append({"role": "assistant", "content": clean_response})
 
