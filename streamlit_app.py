@@ -43,16 +43,16 @@ def get_api_key():
 # --- STATE MANAGEMENT (FULL 30 ELDRIDGE STIPS) ---
 if 'stips' not in st.session_state:
     st.session_state['stips'] = [
-        # A. Concentration Limitations
+        # A. Concentration Limitations (1-16)
         {"Category": "Concentration", "Rule": "Moody’s Caa / S&P CCC Limit", "Threshold": "Max 7.5% (Check Excess Caa/CCC)"},
         {"Category": "Concentration", "Rule": "Top 5 Obligors", "Threshold": "Max 2.5% each (1.5% if non-senior secured)"},
         {"Category": "Concentration", "Rule": "Cov-Lite Loans", "Threshold": "Max 60%"},
-        {"Category": "Concentration", "Rule": "Small Obligors ($150M-$250M)", "Threshold": "Max 5%"},
+        {"Category": "Concentration", "Rule": "Small Obligors ($150M-$250M)", "Threshold": "Max 5% for obligors with debt $150M-$250M"},
         {"Category": "Concentration", "Rule": "Long Dated Obligations", "Threshold": "0% allowed (Strict prohibition)"},
         {"Category": "Concentration", "Rule": "Bridge Loans", "Threshold": "Max 2.5%"},
         {"Category": "Concentration", "Rule": "Fixed Rate / Non-Loan Assets", "Threshold": "Max 5%"},
         {"Category": "Concentration", "Rule": "Delayed Drawdown / Revolving", "Threshold": "Max 10%"},
-        {"Category": "Concentration", "Rule": "Senior Secured Loans", "Threshold": "Min 90%"},
+        {"Category": "Concentration", "Rule": "Senior Secured Loans", "Threshold": "Min 90% of Collateral Principal Amount"},
         {"Category": "Concentration", "Rule": "Participation Interests", "Threshold": "Max 10%"},
         {"Category": "Concentration", "Rule": "Deferrable Obligations", "Threshold": "Max 5%"},
         {"Category": "Concentration", "Rule": "DIP Obligations", "Threshold": "Max 7.5%"},
@@ -61,27 +61,27 @@ if 'stips' not in st.session_state:
         {"Category": "Concentration", "Rule": "Payment Frequency < Quarterly", "Threshold": "Max 5%"},
         {"Category": "Concentration", "Rule": "Discount Obligations", "Threshold": "Max 20%"},
 
-        # B. Reinvestment
+        # B. Reinvestment (17-19)
         {"Category": "Reinvestment", "Rule": "Post-Reinvestment Maturity", "Threshold": "Maturity must be <= Prepaid/Sold Asset"},
         {"Category": "Reinvestment", "Rule": "O/C Test Compliance", "Threshold": "Must satisfy O/C test after reinvestment"},
         {"Category": "Reinvestment", "Rule": "Proceeds Reinvestment Timing", "Threshold": "Later of 45 days or 2nd determination date"},
 
-        # C. Supplemental Indenture
+        # C. Supplemental Indenture (20)
         {"Category": "Structural", "Rule": "Supplemental Indenture Consent", "Threshold": "Majority of Controlling Class required to change Tests/Limits/Defs"},
 
-        # D. Required Definitions
+        # D. Required Definitions (21-23)
         {"Category": "Definitions", "Rule": "CCC Excess Definition", "Threshold": "NO carveouts allowed (e.g. excluding CCCs > par)"},
         {"Category": "Definitions", "Rule": "Discount Obligation Definition", "Threshold": "NO carveouts for CCC Collateral Obligations"},
         {"Category": "Definitions", "Rule": "Small Obligor Definition", "Threshold": "Min Indebtedness $150M. NO allowance for <$150M."},
 
-        # E. Other Requirements
+        # E. Other Requirements (24-28)
         {"Category": "Other", "Rule": "Distressed Exchange", "Threshold": "Max 5% point-in-time, 20% cumulative"},
         {"Category": "Other", "Rule": "FLLO Treatment", "Threshold": "Must be treated as Second Lien Loans"},
         {"Category": "Other", "Rule": "Minimum Purchase Price", "Threshold": "50% floor (5% allowance for 50-60%)"},
         {"Category": "Other", "Rule": "Trading Plan Allowance", "Threshold": "Max 5%. NO Credit Risk sales carveout."},
         {"Category": "Other", "Rule": "Trading Plan Maturity", "Threshold": "Min 6 months. Max 3 years avg life diff."},
 
-        # F. Workouts
+        # F. Workouts (29-30)
         {"Category": "Workouts", "Rule": "Workout Sale Proceeds", "Threshold": "Treat as Principal up to default balance (no distinction)"},
         {"Category": "Workouts", "Rule": "Workout Purchase w/ Interest", "Threshold": "Only if all notes interest is paid/sufficient"},
     ]
