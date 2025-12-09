@@ -40,19 +40,50 @@ def get_api_key():
         return os.getenv("OPENAI_API_KEY")
     return None
 
-# --- STATE MANAGEMENT (Editable Stips) ---
+# --- STATE MANAGEMENT (FULL ELDRIDGE STIPS) ---
 if 'stips' not in st.session_state:
     st.session_state['stips'] = [
-        {"Rule": "Moody’s Caa / S&P CCC Limit", "Threshold": "Max 7.5% (Check for Excess Caa/CCC definitions)"},
-        {"Rule": "Top 5 Obligors", "Threshold": "Max 2.5% each (1.5% if non-senior secured)"},
-        {"Rule": "Cov-Lite Loans", "Threshold": "Max 60%"},
-        {"Rule": "Long Dated Obligations", "Threshold": "0% allowed (Strict prohibition)"},
-        {"Rule": "Industry Concentration", "Threshold": "Max 10% (Exceptions: 2 at 12%, 1 at 15%)"},
-        {"Rule": "Post-Reinvestment Maturity", "Threshold": "Purchases must have maturity <= Prepaid/Sold Asset maturity"},
-        {"Rule": "CCC Excess Definition", "Threshold": "Must NOT have carveouts (e.g. excluding CCCs trading > par)"},
-        {"Rule": "Discount Obligation Definition", "Threshold": "Must NOT have carveouts for CCC Collateral Obligations"},
-        {"Rule": "Distressed Exchange", "Threshold": "Max 5% point-in-time, Max 20% cumulative"},
-        {"Rule": "Trading Plans", "Threshold": "Max 5%. NO carveouts for Credit Risk sales."}
+        # A. Concentration Limitations
+        {"Category": "Concentration", "Rule": "Moody’s Caa / S&P CCC Limit", "Threshold": "Max 7.5% (Check Excess Caa/CCC)"},
+        {"Category": "Concentration", "Rule": "Top 5 Obligors", "Threshold": "Max 2.5% each (1.5% if non-senior secured)"},
+        {"Category": "Concentration", "Rule": "Cov-Lite Loans", "Threshold": "Max 60%"},
+        {"Category": "Concentration", "Rule": "Small Obligors ($150M-$250M)", "Threshold": "Max 5%"},
+        {"Category": "Concentration", "Rule": "Long Dated Obligations", "Threshold": "0% allowed (Strict prohibition)"},
+        {"Category": "Concentration", "Rule": "Bridge Loans", "Threshold": "Max 2.5%"},
+        {"Category": "Concentration", "Rule": "Fixed Rate / Non-Loan Assets", "Threshold": "Max 5%"},
+        {"Category": "Concentration", "Rule": "Delayed Drawdown / Revolving", "Threshold": "Max 10%"},
+        {"Category": "Concentration", "Rule": "Senior Secured Loans", "Threshold": "Min 90%"},
+        {"Category": "Concentration", "Rule": "Participation Interests", "Threshold": "Max 10%"},
+        {"Category": "Concentration", "Rule": "Deferrable Obligations", "Threshold": "Max 5%"},
+        {"Category": "Concentration", "Rule": "DIP Obligations", "Threshold": "Max 7.5%"},
+        {"Category": "Concentration", "Rule": "Industry Concentration", "Threshold": "Max 10% (Exceptions: 2 at 12%, 1 at 15%)"},
+        {"Category": "Concentration", "Rule": "Current Pay Obligations", "Threshold": "Max 5%"},
+        {"Category": "Concentration", "Rule": "Payment Frequency < Quarterly", "Threshold": "Max 5%"},
+        {"Category": "Concentration", "Rule": "Discount Obligations", "Threshold": "Max 20%"},
+
+        # B. Reinvestment
+        {"Category": "Reinvestment", "Rule": "Post-Reinvestment Maturity", "Threshold": "Maturity must be <= Prepaid/Sold Asset"},
+        {"Category": "Reinvestment", "Rule": "O/C Test Compliance", "Threshold": "Must satisfy O/C test after reinvestment"},
+        {"Category": "Reinvestment", "Rule": "Proceeds Reinvestment Timing", "Threshold": "Later of 45 days or 2nd determination date"},
+
+        # C. Supplemental Indenture
+        {"Category": "Structural", "Rule": "Supplemental Indenture Consent", "Threshold": "Majority of Controlling Class required to change Tests/Limits/Defs"},
+
+        # D. Required Definitions
+        {"Category": "Definitions", "Rule": "CCC Excess Definition", "Threshold": "NO carveouts allowed (e.g. excluding CCCs > par)"},
+        {"Category": "Definitions", "Rule": "Discount Obligation Definition", "Threshold": "NO carveouts for CCC Collateral Obligations"},
+        {"Category": "Definitions", "Rule": "Small Obligor Definition", "Threshold": "Min Indebtedness $150M. NO allowance for <$150M."},
+
+        # E. Other Requirements
+        {"Category": "Other", "Rule": "Distressed Exchange", "Threshold": "Max 5% point-in-time, 20% cumulative"},
+        {"Category": "Other", "Rule": "FLLO Treatment", "Threshold": "Must be treated as Second Lien Loans"},
+        {"Category": "Other", "Rule": "Minimum Purchase Price", "Threshold": "50% floor (5% allowance for 50-60%)"},
+        {"Category": "Other", "Rule": "Trading Plan Allowance", "Threshold": "Max 5%. NO Credit Risk sales carveout."},
+        {"Category": "Other", "Rule": "Trading Plan Maturity", "Threshold": "Min 6 months. Max 3 years avg life diff."},
+
+        # F. Workouts
+        {"Category": "Workouts", "Rule": "Workout Sale Proceeds", "Threshold": "Treat as Principal up to default balance (no distinction)"},
+        {"Category": "Workouts", "Rule": "Workout Purchase w/ Interest", "Threshold": "Only if all notes interest is paid/sufficient"},
     ]
 
 # --- 2. CSS STYLING ---
@@ -143,7 +174,7 @@ def run_compliance_check(stip_rule, stip_threshold, user_tweaks=""):
     
     try:
         vectorstore = Chroma(persist_directory=current_db_path, embedding_function=OpenAIEmbeddings(api_key=api_key))
-        # Increase 'k' to retrieve more chunks (helps find scattered definitions)
+        # INCREASE K: Retrieve 6 chunks to find scattered details
         retriever = vectorstore.as_retriever(search_kwargs={"k": 6})
         
         template = """You are a strict Private Credit Compliance Officer.
@@ -176,9 +207,8 @@ def run_compliance_check(stip_rule, stip_threshold, user_tweaks=""):
         )
         
         # --- FIX: SMART RETRIEVAL QUERY ---
-        # We combine Rule + Threshold to force the vector DB to find the numbers.
-        # e.g., "Cov-Lite Loans Max 60% Concentration Limitation"
-        search_query = f"{stip_rule} limit of {stip_threshold}. Find definitions and concentration limitations tables."
+        # Include the specific Threshold numbers in the search to find the Tables, not just definitions.
+        search_query = f"Find language regarding {stip_rule} limit of {stip_threshold} definitions concentration limitations"
         
         response = rag_chain.invoke(search_query)
         return response
@@ -250,6 +280,7 @@ else:
                     clean_response = ai_response.replace("[DISCREPANCY]", "").strip()
                 
                 results.append({
+                    "Category": stip.get("Category", "General"),
                     "Stipulation": stip['Rule'],
                     "Requirement": stip['Threshold'],
                     "Analysis & Language": clean_response,
@@ -258,6 +289,7 @@ else:
             
             progress_bar.empty()
             
+            # Display as Interactive Dataframe
             df = pd.DataFrame(results)
             st.dataframe(
                 df, 
@@ -266,6 +298,7 @@ else:
                     "Analysis & Language": st.column_config.TextColumn("Analysis", width="large"),
                     "Stipulation": st.column_config.TextColumn("Rule", width="medium"),
                     "Requirement": st.column_config.TextColumn("Threshold", width="medium"),
+                    "Category": st.column_config.TextColumn("Category", width="small"),
                 },
                 hide_index=True,
                 use_container_width=True
