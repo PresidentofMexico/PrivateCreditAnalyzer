@@ -40,7 +40,7 @@ def get_api_key():
         return os.getenv("OPENAI_API_KEY")
     return None
 
-# --- STATE MANAGEMENT (FULL ELDRIDGE STIPS) ---
+# --- STATE MANAGEMENT (FULL 30 ELDRIDGE STIPS) ---
 if 'stips' not in st.session_state:
     st.session_state['stips'] = [
         # A. Concentration Limitations
@@ -206,8 +206,8 @@ def run_compliance_check(stip_rule, stip_threshold, user_tweaks=""):
             | StrOutputParser()
         )
         
-        # --- FIX: SMART RETRIEVAL QUERY ---
-        # Include the specific Threshold numbers in the search to find the Tables, not just definitions.
+        # --- FIX: RICH SEARCH QUERY ---
+        # Include keywords like 'limit', 'definition', and the specific number to force better retrieval.
         search_query = f"Find language regarding {stip_rule} limit of {stip_threshold} definitions concentration limitations"
         
         response = rag_chain.invoke(search_query)
