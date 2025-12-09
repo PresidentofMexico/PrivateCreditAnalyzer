@@ -41,7 +41,6 @@ def get_api_key():
     return None
 
 # --- STATE MANAGEMENT (Editable Stips) ---
-# We initialize the stips in session_state so the user can edit them in the UI.
 if 'stips' not in st.session_state:
     st.session_state['stips'] = [
         {"Rule": "Moody’s Caa / S&P CCC Limit", "Threshold": "Max 7.5% (Check for Excess Caa/CCC definitions)"},
@@ -144,9 +143,9 @@ def run_compliance_check(stip_rule, stip_threshold, user_tweaks=""):
     
     try:
         vectorstore = Chroma(persist_directory=current_db_path, embedding_function=OpenAIEmbeddings(api_key=api_key))
-        retriever = vectorstore.as_retriever()
+        # Increase 'k' to retrieve more chunks (helps find scattered definitions)
+        retriever = vectorstore.as_retriever(search_kwargs={"k": 6})
         
-        # ENHANCED PROMPT: Accepts User Tweaks and Strict Requirements
         template = """You are a strict Private Credit Compliance Officer.
         
         YOUR TASK: Compare the 'Eldridge Requirement' against the 'Document Language'.
@@ -176,8 +175,11 @@ def run_compliance_check(stip_rule, stip_threshold, user_tweaks=""):
             | StrOutputParser()
         )
         
-        # We pass the rule itself as the query to find relevant chunks
-        search_query = f"Find language regarding {stip_rule} limit or definition"
+        # --- FIX: SMART RETRIEVAL QUERY ---
+        # We combine Rule + Threshold to force the vector DB to find the numbers.
+        # e.g., "Cov-Lite Loans Max 60% Concentration Limitation"
+        search_query = f"{stip_rule} limit of {stip_threshold}. Find definitions and concentration limitations tables."
+        
         response = rag_chain.invoke(search_query)
         return response
     except Exception as e:
@@ -210,7 +212,6 @@ with st.sidebar:
 
     st.divider()
     st.subheader("⚙️ Audit Settings")
-    # This allows the user to inject "Tweaks" into the prompt
     user_guidance = st.text_area("Global Instructions (Optional)", 
         placeholder="e.g., 'Ignore the Preliminary OM section, focus on Article 12 definitions.'",
         help="These instructions will be added to every check the agent runs."
@@ -232,16 +233,13 @@ else:
         if st.button("RUN FULL AUDIT", type="primary"):
             results = []
             progress_bar = st.progress(0)
-            stips_list = st.session_state['stips'] # Read from session state (allows edits)
+            stips_list = st.session_state['stips'] 
             
             for idx, stip in enumerate(stips_list):
-                # Update Progress
                 progress_bar.progress((idx + 1) / len(stips_list), text=f"Checking: {stip['Rule']}...")
                 
-                # Run AI Check with User Tweaks
                 ai_response = run_compliance_check(stip['Rule'], stip['Threshold'], user_guidance)
                 
-                # Parse Result (Basic parsing for UI color)
                 status = "❓ Review"
                 clean_response = ai_response
                 if "[MATCH]" in ai_response:
@@ -260,7 +258,6 @@ else:
             
             progress_bar.empty()
             
-            # Display as Interactive Dataframe
             df = pd.DataFrame(results)
             st.dataframe(
                 df, 
@@ -292,7 +289,6 @@ else:
             st.session_state.messages.append({"role": "user", "content": user_input})
 
             with st.chat_message("assistant"):
-                # Re-using compliance check as a generic query tool
                 response = run_compliance_check(user_input, "N/A (Custom Query)", user_guidance)
                 clean_response = response.replace("[MATCH]", "").replace("[DISCREPANCY]", "")
                 st.markdown(clean_response)
@@ -303,7 +299,6 @@ else:
         st.subheader("Edit Standard Stipulations")
         st.info("Modify these rules for this specific deal. Changes apply when you run the Audit.")
         
-        # Dynamic Form to Edit Stips
         with st.form("edit_stips_form"):
             current_stips = st.session_state['stips']
             updated_stips = []
@@ -311,10 +306,8 @@ else:
             for i, stip in enumerate(current_stips):
                 col1, col2 = st.columns([1, 2])
                 with col1:
-                    # Rule Name (Read Only recommended to keep tracking consistent)
                     st.text_input(f"Rule", value=stip['Rule'], key=f"rule_name_{i}", disabled=True)
                 with col2:
-                    # Threshold (Editable)
                     new_thresh = st.text_input(f"Threshold", value=stip['Threshold'], key=f"thresh_{i}")
                     updated_stips.append({"Rule": stip['Rule'], "Threshold": new_thresh, "Category": stip.get("Category", "General")})
             
