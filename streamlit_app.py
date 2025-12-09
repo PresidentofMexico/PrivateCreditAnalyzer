@@ -41,7 +41,7 @@ def get_api_key():
     return None
 
 # --- STATE MANAGEMENT (FULL 30 ELDRIDGE STIPS) ---
-# UPDATED: Added 'SearchQuery' to map "Sales Term" -> "Legal Term"
+# UPDATED: Switched 'SearchQuery' to "Mock Legal Clauses" for ALL Sections (A-F)
 if 'stips' not in st.session_state:
     st.session_state['stips'] = [
         # A. Concentration Limitations (1-16)
@@ -49,73 +49,73 @@ if 'stips' not in st.session_state:
             "Category": "Concentration", 
             "Rule": "Moody’s Caa / S&P CCC Limit", 
             "Threshold": "Max 7.5% (Check Excess Caa/CCC)",
-            "SearchQuery": "Concentration Limitations CCC Collateral Obligations Caa Collateral Obligations"
+            "SearchQuery": "Concentration Limitations not more than % of the Collateral Principal Amount may consist of Caa Collateral Obligations and CCC Collateral Obligations"
         },
         {
             "Category": "Concentration", 
             "Rule": "Top 5 Obligors", 
             "Threshold": "Max 2.5% each (1.5% if non-senior secured)",
-            "SearchQuery": "Concentration Limitations single Obligor issued by up to five such Obligors" # TARGETED FIX
+            "SearchQuery": "Concentration Limitations single Obligor issued by up to five such Obligors" 
         },
         {
             "Category": "Concentration", 
             "Rule": "Cov-Lite Loans", 
             "Threshold": "Max 60%",
-            "SearchQuery": "Concentration Limitations Cov-Lite Loans Covenant Lite Loans"
+            "SearchQuery": "Concentration Limitations not more than % of the Collateral Principal Amount may consist of Covenant Lite Loans"
         },
         {
             "Category": "Concentration", 
             "Rule": "Small Obligors ($150M-$250M)", 
             "Threshold": "Max 5% for obligors with debt $150M-$250M",
-            "SearchQuery": "Concentration Limitations Small Obligor Domiciled Indebtedness"
+            "SearchQuery": "Concentration Limitations Domiciled Obligors Indebtedness of less than"
         },
         {
             "Category": "Concentration", 
             "Rule": "Long Dated Obligations", 
             "Threshold": "0% allowed (Strict prohibition)",
-            "SearchQuery": "Concentration Limitations Long Dated Obligations maturity"
+            "SearchQuery": "Concentration Limitations Long Dated Obligations maturity date"
         },
         {
             "Category": "Concentration", 
             "Rule": "Bridge Loans", 
             "Threshold": "Max 2.5%",
-            "SearchQuery": "Concentration Limitations Bridge Loans"
+            "SearchQuery": "Concentration Limitations not more than % of the Collateral Principal Amount may consist of Bridge Loans"
         },
         {
             "Category": "Concentration", 
             "Rule": "Fixed Rate / Non-Loan Assets", 
             "Threshold": "Max 5%",
-            "SearchQuery": "Concentration Limitations Fixed Rate Obligations"
+            "SearchQuery": "Concentration Limitations not more than % of the Collateral Principal Amount may consist of Fixed Rate Obligations"
         },
         {
             "Category": "Concentration", 
             "Rule": "Delayed Drawdown / Revolving", 
             "Threshold": "Max 10%",
-            "SearchQuery": "Concentration Limitations Revolving Collateral Obligations Delayed Drawdown"
+            "SearchQuery": "Concentration Limitations not more than % of the Collateral Principal Amount may consist of Revolving Collateral Obligations and Delayed Drawdown Collateral Obligations"
         },
         {
             "Category": "Concentration", 
             "Rule": "Senior Secured Loans", 
             "Threshold": "Min 90% of Collateral Principal Amount",
-            "SearchQuery": "Concentration Limitations Senior Secured Loans"
+            "SearchQuery": "Concentration Limitations not less than % of the Collateral Principal Amount may consist of Senior Secured Loans"
         },
         {
             "Category": "Concentration", 
             "Rule": "Participation Interests", 
             "Threshold": "Max 10%",
-            "SearchQuery": "Concentration Limitations Participation Interests"
+            "SearchQuery": "Concentration Limitations not more than % of the Collateral Principal Amount may consist of Participation Interests"
         },
         {
             "Category": "Concentration", 
             "Rule": "Deferrable Obligations", 
             "Threshold": "Max 5%",
-            "SearchQuery": "Concentration Limitations Deferrable Obligations"
+            "SearchQuery": "Concentration Limitations not more than % of the Collateral Principal Amount may consist of Deferrable Obligations"
         },
         {
             "Category": "Concentration", 
             "Rule": "DIP Obligations", 
             "Threshold": "Max 7.5%",
-            "SearchQuery": "Concentration Limitations DIP Collateral Obligations"
+            "SearchQuery": "Concentration Limitations not more than % of the Collateral Principal Amount may consist of DIP Collateral Obligations"
         },
         {
             "Category": "Concentration", 
@@ -127,7 +127,7 @@ if 'stips' not in st.session_state:
             "Category": "Concentration", 
             "Rule": "Current Pay Obligations", 
             "Threshold": "Max 5%",
-            "SearchQuery": "Concentration Limitations Current Pay Obligations"
+            "SearchQuery": "Concentration Limitations not more than % of the Collateral Principal Amount may consist of Current Pay Obligations"
         },
         {
             "Category": "Concentration", 
@@ -139,7 +139,7 @@ if 'stips' not in st.session_state:
             "Category": "Concentration", 
             "Rule": "Discount Obligations", 
             "Threshold": "Max 20%",
-            "SearchQuery": "Concentration Limitations Discount Obligations"
+            "SearchQuery": "Concentration Limitations not more than % of the Collateral Principal Amount may consist of Discount Obligations"
         },
 
         # B. Reinvestment (17-19)
@@ -147,19 +147,19 @@ if 'stips' not in st.session_state:
             "Category": "Reinvestment", 
             "Rule": "Post-Reinvestment Maturity", 
             "Threshold": "Maturity must be <= Prepaid/Sold Asset",
-            "SearchQuery": "Reinvestment Period maturity date Substitute Obligation"
+            "SearchQuery": "Reinvestment Period Substitute Obligations shall have a Stated Maturity not later than the Stated Maturity of the Reinvested Asset"
         },
         {
             "Category": "Reinvestment", 
             "Rule": "O/C Test Compliance", 
             "Threshold": "Must satisfy O/C test after reinvestment",
-            "SearchQuery": "Reinvestment Period Overcollateralization Ratio Test"
+            "SearchQuery": "Reinvestment Period satisfied the Overcollateralization Ratio Test"
         },
         {
             "Category": "Reinvestment", 
             "Rule": "Proceeds Reinvestment Timing", 
             "Threshold": "Later of 45 days or 2nd determination date",
-            "SearchQuery": "Reinvestment Period Sale Proceeds reinvestment timing"
+            "SearchQuery": "Reinvestment Period Sale Proceeds may be reinvested within Business Days"
         },
 
         # C. Supplemental Indenture (20)
@@ -167,7 +167,7 @@ if 'stips' not in st.session_state:
             "Category": "Structural", 
             "Rule": "Supplemental Indenture Consent", 
             "Threshold": "Majority of Controlling Class required to change Tests/Limits/Defs",
-            "SearchQuery": "Supplemental Indenture consent Controlling Class Majority"
+            "SearchQuery": "Supplemental Indenture with the consent of the Majority of the Controlling Class"
         },
 
         # D. Required Definitions (21-23)
@@ -175,19 +175,19 @@ if 'stips' not in st.session_state:
             "Category": "Definitions", 
             "Rule": "CCC Excess Definition", 
             "Threshold": "NO carveouts allowed (e.g. excluding CCCs > par)",
-            "SearchQuery": "definition Excess CCC/Caa Adjustment Amount"
+            "SearchQuery": "definition Excess CCC/Caa Adjustment Amount means"
         },
         {
             "Category": "Definitions", 
             "Rule": "Discount Obligation Definition", 
             "Threshold": "NO carveouts for CCC Collateral Obligations",
-            "SearchQuery": "definition Discount Obligation"
+            "SearchQuery": "definition Discount Obligation means any Collateral Obligation"
         },
         {
             "Category": "Definitions", 
             "Rule": "Small Obligor Definition", 
             "Threshold": "Min Indebtedness $150M. NO allowance for <$150M.",
-            "SearchQuery": "definition Small Obligor Indebtedness"
+            "SearchQuery": "definition Small Obligor means any Obligor with total Indebtedness"
         },
 
         # E. Other Requirements (24-28)
@@ -195,31 +195,31 @@ if 'stips' not in st.session_state:
             "Category": "Other", 
             "Rule": "Distressed Exchange", 
             "Threshold": "Max 5% point-in-time, 20% cumulative",
-            "SearchQuery": "Distressed Exchange Offer"
+            "SearchQuery": "Distressed Exchange Offer means an offer by the Issuer"
         },
         {
             "Category": "Other", 
             "Rule": "FLLO Treatment", 
             "Threshold": "Must be treated as Second Lien Loans",
-            "SearchQuery": "First Lien Last Out Loan Second Lien Loan"
+            "SearchQuery": "First Lien Last Out Loan shall be treated as a Second Lien Loan"
         },
         {
             "Category": "Other", 
             "Rule": "Minimum Purchase Price", 
             "Threshold": "50% floor (5% allowance for 50-60%)",
-            "SearchQuery": "Minimum Purchase Price"
+            "SearchQuery": "Collateral Obligation acquired for a purchase price of less than %"
         },
         {
             "Category": "Other", 
             "Rule": "Trading Plan Allowance", 
             "Threshold": "Max 5%. NO Credit Risk sales carveout.",
-            "SearchQuery": "Trading Plan Investment Criteria"
+            "SearchQuery": "Trading Plan provided that the aggregate Principal Balance"
         },
         {
             "Category": "Other", 
             "Rule": "Trading Plan Maturity", 
             "Threshold": "Min 6 months. Max 3 years avg life diff.",
-            "SearchQuery": "Trading Plan Average Life"
+            "SearchQuery": "Trading Plan Average Life difference"
         },
 
         # F. Workouts (29-30)
@@ -227,13 +227,13 @@ if 'stips' not in st.session_state:
             "Category": "Workouts", 
             "Rule": "Workout Sale Proceeds", 
             "Threshold": "Treat as Principal up to default balance (no distinction)",
-            "SearchQuery": "Workout Loan Sale Proceeds"
+            "SearchQuery": "Workout Loan Sale Proceeds shall be treated as Principal Proceeds"
         },
         {
             "Category": "Workouts", 
             "Rule": "Workout Purchase w/ Interest", 
             "Threshold": "Only if all notes interest is paid/sufficient",
-            "SearchQuery": "Workout Loan interest"
+            "SearchQuery": "Workout Loan interest may be purchased using Interest Proceeds only if"
         },
     ]
 
