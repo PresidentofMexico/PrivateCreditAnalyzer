@@ -317,6 +317,7 @@ def process_document(uploaded_file):
 def run_compliance_check(stip_rule, stip_threshold, user_tweaks="", search_override=None):
     """
     Specific Agent logic to compare a Stip against the Doc using Prompt Engineering.
+    Includes Exponential Backoff for 429 Rate Limits.
     """
     api_key = get_api_key()
     if not api_key or 'db_path' not in st.session_state:
@@ -367,8 +368,30 @@ def run_compliance_check(stip_rule, stip_threshold, user_tweaks="", search_overr
         else:
             search_query = f"Find language regarding {stip_rule} limit of {stip_threshold} definitions concentration limitations"
         
-        response = rag_chain.invoke(search_query)
-        return response
+        # --- ROBUST RETRY LOGIC FOR RATE LIMITS ---
+        max_retries = 6 
+        backoff_base = 2 # 2s, 4s, 8s, 16s...
+        
+        for attempt in range(max_retries):
+            try:
+                response = rag_chain.invoke(search_query)
+                return response
+            except Exception as e:
+                error_msg = str(e)
+                # Check specifically for OpenAI Rate Limit (429)
+                if "429" in error_msg or "Rate limit" in error_msg:
+                    if attempt < max_retries - 1:
+                        sleep_time = (backoff_base ** (attempt + 1))
+                        # Notify user gracefully
+                        st.toast(f"🚦 Rate Limit Hit on '{stip_rule}'. Cooling down for {sleep_time}s...", icon="⏳")
+                        time.sleep(sleep_time)
+                        continue
+                    else:
+                        return f"Error: OpenAI Rate Limit Exceeded after retries. Details: {error_msg}"
+                else:
+                    # Determine other errors immediately
+                    return f"Error: {error_msg}"
+        
     except Exception as e:
         return f"Error: {str(e)}"
 
